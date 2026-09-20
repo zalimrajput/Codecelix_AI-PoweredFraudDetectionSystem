@@ -16,6 +16,13 @@ env/
 
 # Local SQLite test databases
 *.db
+*.sqlite
+*.sqlite3
+
+# Test artifacts & caches
+.pytest_cache/
+.coverage
+htmlcov/
 
 # IDE / OS
 .vscode/
@@ -30,3 +37,5 @@ Thumbs.db
 node_modules/
 frontend/dist/
 frontend/.env
+frontend/.env*.local
+.vite/

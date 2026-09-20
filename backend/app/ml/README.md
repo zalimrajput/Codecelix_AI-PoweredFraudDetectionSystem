@@ -9,14 +9,10 @@ backend/app/ml/
 ├── __init__.py
 ├── README.md
 └── artifacts/
-    ├── .gitkeep
     ├── report.txt                         # Canonical risk decision threshold specification
     ├── synthetic_fraud_pipeline.joblib    # PRIMARY: Hybrid Ensemble (XGBoost 75% + Isolation Forest 25%)
     ├── ulb_hybrid_fraud_pipeline.joblib   # BENCHMARK: Hybrid Credit-Card PCA Pipeline (V1–V28)
-    ├── final_fraud_pipeline.pkl           # BENCHMARK: IEEE-CIS Identity Pipeline
-    └── Old/
-        ├── isolation_forest.joblib        # Legacy baseline isolation forest
-        └── model_meta.joblib              # Legacy metadata
+    └── final_fraud_pipeline.pkl           # BENCHMARK: IEEE-CIS Identity Pipeline
 ```
 
 ## Primary Production Pipeline (`synthetic_fraud_pipeline.joblib`)

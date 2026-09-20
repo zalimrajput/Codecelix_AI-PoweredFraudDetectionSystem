@@ -124,8 +124,7 @@ Codecelix_AI-PoweredFraudDetectionSystem/
 │   │   │   │   ├── synthetic_fraud_pipeline.joblib  # Primary Hybrid Production Pipeline (XGBoost + iForest)
 │   │   │   │   ├── ulb_hybrid_fraud_pipeline.joblib # Benchmark Credit-Card PCA Pipeline
 │   │   │   │   ├── final_fraud_pipeline.pkl         # Benchmark IEEE-CIS Pipeline
-│   │   │   │   ├── report.txt                       # Canonical Decision Thresholds & Weights
-│   │   │   │   └── Old/                             # Archived baseline models
+│   │   │   │   └── report.txt                       # Canonical Decision Thresholds & Weights
 │   │   │   └── README.md            # ML architecture and feature documentation
 │   │   ├── models/                  # 15 SQLAlchemy 2.0 models (native JSONB on PostgreSQL)
 │   │   ├── schemas/                 # Pydantic v2 request/response models
@@ -164,7 +163,6 @@ Codecelix_AI-PoweredFraudDetectionSystem/
 │   └── README.md                    # Frontend architecture, installation, and integration guide
 ├── docs/
 │   ├── Codecelix_AI_Fraud_Detection_Comprehensive_System_Report.docx # Detailed Full-Stack Architecture & Audit Report
-│   ├── Codecelix_AI_Fraud_Detection_Platform_Status_Report.docx      # Interim Project Status Report & Blueprint
 │   └── ai_31_aug.pdf                # Original assignment specification
 ├── scripts/
 │   └── generate_report_docx.py      # Automated report generator generating styled DOCX audits
@@ -337,7 +335,6 @@ python test_ai_layer.py
 * **Comprehensive Full-Stack System & Quality Audit Report (DOCX)**: [`docs/Codecelix_AI_Fraud_Detection_Comprehensive_System_Report.docx`](docs/Codecelix_AI_Fraud_Detection_Comprehensive_System_Report.docx)
 * **Frontend Architecture & Integration Documentation**: [`frontend/README.md`](frontend/README.md)
 * **Backend Technical Documentation & Test Pyramid Guide**: [`backend/README.md`](backend/README.md)
-* **Interim Project Status Report & Blueprint (DOCX)**: [`docs/Codecelix_AI_Fraud_Detection_Platform_Status_Report.docx`](docs/Codecelix_AI_Fraud_Detection_Platform_Status_Report.docx)
 * **ML Artifacts Documentation**: [`backend/app/ml/README.md`](backend/app/ml/README.md)
 * **Automated DOCX Report Generation Script**: [`scripts/generate_report_docx.py`](scripts/generate_report_docx.py)
 * **Original Project Specification**: [`docs/ai_31_aug.pdf`](docs/ai_31_aug.pdf)

@@ -96,7 +96,6 @@ python test_ai_layer.py
 | **`ulb_hybrid_fraud_pipeline.joblib`** | Hybrid Credit-Card PCA Pipeline | 37 features (`V1`–`V28`, Amount, Time) | Benchmark model for credit card PCA datasets |
 | **`final_fraud_pipeline.pkl`** | IEEE-CIS Pipeline | 75 features (`card1`–`card6`, `C1`–`C14`, `D1`–`D15`, `id_01`–`id_20`) | Benchmark model for e-commerce identity datasets |
 | **`report.txt`** | Canonical Thresholds | Decision tiers: `0–30` Low, `31–70` Medium, `71–100` High | Operational decision matrix |
-| **`Old/`** | Archived Baseline | 10-feature interim model | Preserved for rollback safety |
 
 ---
 

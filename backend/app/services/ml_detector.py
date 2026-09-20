@@ -38,7 +38,6 @@ MODEL_DIR = Path(__file__).resolve().parent.parent / "ml" / "artifacts"
 SYNTHETIC_PIPELINE_PATH = MODEL_DIR / "synthetic_fraud_pipeline.joblib"
 ULB_PIPELINE_PATH = MODEL_DIR / "ulb_hybrid_fraud_pipeline.joblib"
 FINAL_PIPELINE_PATH = MODEL_DIR / "final_fraud_pipeline.pkl"
-OLD_MODEL_PATH = MODEL_DIR / "Old" / "isolation_forest.joblib"
 
 _CACHED_PIPELINE: dict[str, Any] | None = None
 
