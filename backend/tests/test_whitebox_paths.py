@@ -197,7 +197,7 @@ def test_customer_aggregate_recomputation(db):
     db.add(c)
     db.commit()
 
-    now = datetime(2026, 9, 18, 12, 0, 0, tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
     # Add 3 transactions: $50, $100, $150
     t1 = Transaction(id=str(uuid4()), customer_id=c.id, amount=50.0, status="approved", created_at=now - timedelta(hours=3))
     t2 = Transaction(id=str(uuid4()), customer_id=c.id, amount=100.0, status="approved", created_at=now - timedelta(hours=2))

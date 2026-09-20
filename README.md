@@ -1,42 +1,48 @@
 # Codecelix — AI-Powered Fraud & Risk Detection Platform
 
-An enterprise-grade, real-time **AI & Rule-Based Fraud Detection System** designed for e-commerce companies, fintech platforms, subscription services, and digital marketplaces.
+An enterprise-grade, full-stack **AI & Rule-Based Fraud Detection System** designed for e-commerce companies, fintech platforms, subscription services, and digital marketplaces.
 
-Built with **FastAPI + SQLAlchemy 2.0 + PostgreSQL (Supabase)**, incorporating a **Hybrid Machine Learning Ensemble (75% XGBoost + 25% Isolation Forest)** across 43 transactional features, a **Configurable Rules Engine**, **Algorithmic Pattern Detectors**, and **Google Gemini 2.5 Flash** for plain-language explanations and natural language investigation assistance.
+Built with **FastAPI + SQLAlchemy 2.0 + PostgreSQL (Supabase)** on the backend, a modern **React 18 + TypeScript + Vite + Tailwind CSS** frontend, incorporating a **Hybrid Machine Learning Ensemble (75% XGBoost + 25% Isolation Forest)** across 43 transactional features, an **AST Configurable Rules Engine**, **Algorithmic Pattern Detectors**, and **Google Gemini** for plain-language risk explanations and grounded investigative Q&A.
 
 ---
 
-## Architecture Overview
+## Full-Stack Architecture Overview
 
 ```
-                                REAL-TIME INGESTION PIPELINE
-                                              │
-                                  Incoming Transaction
-                                              │
-                                              ▼
-                                    [ Data Validation ]
-                                              │
-                        ┌─────────────────────┼─────────────────────┐
-                        │                     │                     │
-                        ▼                     ▼                     ▼
-               [ Rules Engine ]      [ Hybrid ML Model ]     [ Customer History ]
-               (AST Tree Evaluator)   (75% XGB + 25% iForest)  (Behavior Z-Score)
-                        │                     │                     │
-                        └─────────────────────┼─────────────────────┘
-                                              │
-                                              ▼
-                                  [ Risk Decision Engine ]
-                             Weighted Score (0–100) & Decision:
-                                [ APPROVE | REVIEW | BLOCK ]
-                                              │
-                                              ├──────────────────────────┐
-                                              ▼                          ▼
-                                   Fast-Path Response (<5ms)       [ Auto-Alert ]
-                                 (Deterministic Explanations)    (High/Critical Risk)
-                                              │
-                                              ▼ (Asynchronous BackgroundTasks)
-                                  [ Google Gemini 2.5 Flash ]
-                                (Enriches stored ai_explanation)
+ ┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
+ │                                   REACT 18 + TYPESCRIPT FRONTEND                                │
+ │  [Executive Dashboard]  [Audit Register]  [Investigation Dossier]  [2D Network Graph]  [AI Drawer]│
+ └───────────────────────────────────────────────┬─────────────────────────────────────────────────┘
+                                                 │ Reverse Proxy (/api/*)
+                                                 ▼
+ ┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
+ │                                      FASTAPI REST API BACKEND                                   │
+ │                           REAL-TIME TRANSACTION INGESTION & RISK ENGINE                         │
+ │                                               │                                                 │
+ │                                     [ Data Validation ]                                         │
+ │                                               │                                                 │
+ │                         ┌─────────────────────┼─────────────────────┐                           │
+ │                         │                     │                     │                           │
+ │                         ▼                     ▼                     ▼                           │
+ │                [ Rules Engine ]      [ Hybrid ML Model ]     [ Customer History ]               │
+ │                (AST Tree Evaluator)   (75% XGB + 25% iForest)  (Behavior Z-Score)               │
+ │                         │                     │                     │                           │
+ │                         └─────────────────────┼─────────────────────┘                           │
+ │                                               │                                                 │
+ │                                               ▼                                                 │
+ │                                   [ Risk Decision Engine ]                                      │
+ │                              Weighted Score (0–100) & Decision:                                 │
+ │                                 [ APPROVE | REVIEW | BLOCK ]                                    │
+ │                                               │                                                 │
+ │                                               ├──────────────────────────┐                      │
+ │                                               ▼                          ▼                      │
+ │                                    Fast-Path Response (<5ms)       [ Auto-Alert ]               │
+ │                                  (Deterministic Explanations)    (High/Critical Risk)           │
+ │                                               │                                                 │
+ │                                               ▼ (Asynchronous BackgroundTasks)                  │
+ │                                   [ Google Gemini LLM ]                                         │
+ │                                 (Enriches stored ai_explanation)                                │
+ └─────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -142,9 +148,26 @@ Codecelix_AI-PoweredFraudDetectionSystem/
 │   ├── .env.example                 # Environment template
 │   ├── init_db.py                   # Database table provisioning script
 │   └── requirements.txt             # Python dependencies (FastAPI, XGBoost, Scikit-Learn, Pandas, etc.)
+├── frontend/                        # Enterprise React 18 + TypeScript + Vite + Tailwind CSS SPA
+│   ├── src/
+│   │   ├── api/                     # Typed REST client adapters & reverse proxy hooks
+│   │   ├── components/              # UI components, tables, badges, modals, drawers
+│   │   │   └── assistant/           # Global slide-out AI Assistant drawer (Gemini Q&A)
+│   │   ├── context/                 # AuthContext (JWT persistence, RBAC role-switcher) & ToastContext
+│   │   ├── features/                # Domain views (Dashboard, Transactions, Cases, Network Graph, Rules, Reports, Users)
+│   │   ├── layouts/                 # AppShell, responsive Sidebar with Sign-Out, Topbar
+│   │   └── types/                   # Complete domain TypeScript type definitions
+│   ├── dev.bat                      # Windows one-click local development launcher
+│   ├── build.bat                    # Windows one-click production build launcher
+│   ├── package.json                 # Frontend dependencies (Recharts, React Flow, Lucide, Tailwind)
+│   ├── vite.config.ts               # Vite bundler config with backend reverse proxy (/api -> :8000)
+│   └── README.md                    # Frontend architecture, installation, and integration guide
 ├── docs/
-│   ├── ai_31_aug.pdf                # Original assignment specification
-│   └── Codecelix_AI_Fraud_Detection_Platform_Status_Report.docx # Project report & frontend blueprint
+│   ├── Codecelix_AI_Fraud_Detection_Comprehensive_System_Report.docx # Detailed Full-Stack Architecture & Audit Report
+│   ├── Codecelix_AI_Fraud_Detection_Platform_Status_Report.docx      # Interim Project Status Report & Blueprint
+│   └── ai_31_aug.pdf                # Original assignment specification
+├── scripts/
+│   └── generate_report_docx.py      # Automated report generator generating styled DOCX audits
 └── README.md                        # Project overview & quick start
 ```
 
@@ -185,15 +208,36 @@ Provision all 15 tables and default fraud rules:
 python init_db.py
 ```
 
-### 5. Run the Server
+### 5. Run the Application
 
+#### Step A: Run Backend API (Port 8000)
 ```bash
+cd backend
 uvicorn app.main:app --reload --port 8000
 ```
-
 * **Interactive Swagger UI**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 * **ReDoc Documentation**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 * **Health Check**: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
+
+#### Step B: Run Frontend Platform (Port 5173)
+```bash
+cd frontend
+
+# Option 1: Double-click or run portable batch launcher (Windows)
+dev.bat
+
+# Option 2: Standard Node / NPM
+npm install
+npm run dev
+```
+* **Web Portal Interface**: [http://localhost:5173](http://localhost:5173)
+
+#### Step C: Default Role-Based Access Accounts
+| Role | Email | Password | Access Capabilities |
+|:---|:---|:---|:---|
+| **Platform Administrator** | `admin@codecelix.io` | `Passw0rd!123` | Full access: CRUD Rules, Retraining, Case Management, User Management |
+| **Business Risk Manager** | `manager@codecelix.io` | `Passw0rd!123` | KPI Analytics, Audit Reports, Alert Reviews, Case Management |
+| **Fraud Investigation Analyst** | `analyst@codecelix.io` | `Passw0rd!123` | Case Investigations, AI Assistant Queries, Transaction Inspection |
 
 ---
 
@@ -290,9 +334,12 @@ python test_ai_layer.py
 
 ## Documentation & Deliverables
 
-* **Detailed Project Status Report & Frontend Blueprint (DOCX)**: [`docs/Codecelix_AI_Fraud_Detection_Platform_Status_Report.docx`](docs/Codecelix_AI_Fraud_Detection_Platform_Status_Report.docx)
+* **Comprehensive Full-Stack System & Quality Audit Report (DOCX)**: [`docs/Codecelix_AI_Fraud_Detection_Comprehensive_System_Report.docx`](docs/Codecelix_AI_Fraud_Detection_Comprehensive_System_Report.docx)
+* **Frontend Architecture & Integration Documentation**: [`frontend/README.md`](frontend/README.md)
+* **Backend Technical Documentation & Test Pyramid Guide**: [`backend/README.md`](backend/README.md)
+* **Interim Project Status Report & Blueprint (DOCX)**: [`docs/Codecelix_AI_Fraud_Detection_Platform_Status_Report.docx`](docs/Codecelix_AI_Fraud_Detection_Platform_Status_Report.docx)
 * **ML Artifacts Documentation**: [`backend/app/ml/README.md`](backend/app/ml/README.md)
-* **Backend Technical Documentation**: [`backend/README.md`](backend/README.md)
+* **Automated DOCX Report Generation Script**: [`scripts/generate_report_docx.py`](scripts/generate_report_docx.py)
 * **Original Project Specification**: [`docs/ai_31_aug.pdf`](docs/ai_31_aug.pdf)
 
 ---
