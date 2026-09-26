@@ -5,15 +5,19 @@ alembic==1.14.0
 psycopg2-binary==2.9.10
 pydantic[email]==2.10.4
 pydantic-settings==2.7.0
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
+# passlib 1.7.4 is incompatible with bcrypt>=4.1 (removed __about__ attr)
 bcrypt==4.0.1
 python-multipart==0.0.20
 httpx==0.28.1
-scikit-learn>=1.6.0
-numpy>=2.0.0
-joblib>=1.4.0
-pandas>=2.2.0
-xgboost>=2.1.0
-redis>=5.2.0
-celery>=5.4.0
+scikit-learn==1.6.0
+numpy==2.2.1
+joblib==1.4.2
+# Pinned to the 2.x lines the pre-trained joblib artifacts were built with;
+# pandas 3.x changes default dtypes / Copy-on-Write semantics.
+pandas==2.2.3
+xgboost==2.1.4
+redis==8.1.0
+celery==5.6.3
+pytest==8.4.2

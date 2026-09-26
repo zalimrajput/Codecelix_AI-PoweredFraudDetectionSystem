@@ -1,5 +1,7 @@
 import { RiskLevel } from './transaction';
 
+export type { RiskLevel };
+
 export type NetworkNodeType = 'CUSTOMER' | 'DEVICE' | 'IP' | 'TRANSACTION';
 
 export interface NetworkNodeData {

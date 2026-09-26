@@ -1,5 +1,7 @@
 import { RiskLevel, TransactionDecision } from './transaction';
 
+export type { RiskLevel, TransactionDecision };
+
 export type InvestigationStatus = 'OPEN' | 'UNDER_REVIEW' | 'ESCALATED' | 'RESOLVED' | 'CLOSED';
 export type InvestigationDecision = 'CONFIRMED_FRAUD' | 'FALSE_POSITIVE' | 'SUSPICIOUS_CLEARED' | 'PENDING_INFO';
 
