@@ -20,7 +20,7 @@ from app.services.explanation import generate_deterministic_explanation
 
 
 def test_weighted_scoring_formula(db):
-    """Verifies the exact 40% Rules + 35% Behavior + 25% ML weighted formula."""
+    """Verifies the exact 35% Rules + 20% Behavior + 45% ML weighted formula."""
     c = Customer(
         id=str(uuid4()),
         external_id="CUST-WB-WEIGHT",
@@ -45,7 +45,7 @@ def test_weighted_scoring_formula(db):
     beh_s = res["customer_behavior_score"]
     ml_s = res["ml_anomaly_score"]
 
-    expected_combined = round((0.40 * rule_s) + (0.35 * beh_s) + (0.25 * ml_s), 1)
+    expected_combined = round((0.35 * rule_s) + (0.20 * beh_s) + (0.45 * ml_s), 1)
     assert abs(res["risk_score"] - expected_combined) <= 0.1, (
         f"Expected {expected_combined}, got {res['risk_score']}"
     )

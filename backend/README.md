@@ -144,14 +144,15 @@ All tables use UUID primary keys and UTC timestamps. Tables with JSON structures
 
 ### 2. Real-Time Risk Scoring
 * `POST /api/risk-check` — **Synchronous Pre-Flight Scoring**: Evaluates a transaction in sub-5ms without writing to the database. Returns risk score, decision (`APPROVE`/`REVIEW`/`BLOCK`), triggered rules, and explanation.
+* **Risk-Signal Overrides** (optional, on `/api/risk-check`, `/api/transactions`, `/api/transactions/manual`, and CSV import): `device_type`, `device_age_days`, `is_new_device`, `account_age_days`, `customer_avg_amount`, `distance_from_home_km`, `ip_account_count`, `shared_ip`, `shared_device`, `device_customer_count`. Provided values feed the ML feature vector and rules context directly; omitted values fall back to auto-derivation from customer/device/IP history.
 * `GET /api/risk/{transaction_id}` — Retrieves the stored risk assessment, AI explanation, and raw feature snapshot.
 * `GET /api/risk-metrics` — Retrieves model performance indicators (active model status, precision, recall, review breakdown).
 * `POST /api/risk/retrain` — Triggers automated background model retraining using analyst-labeled feedback (Admin only).
 
 ### 3. Transactions
 * `POST /api/transactions` — Merchant transaction ingestion via `X-API-Key`.
-* `POST /api/transactions/manual` — Internal dashboard manual entry (Admin / Business Manager).
-* `POST /api/transactions/import/csv` — Bulk CSV import with batch scoring (Admin / Business Manager).
+* `POST /api/transactions/manual` — Internal dashboard manual entry (Admin / Business Manager) with auto-scoring and optional risk-signal overrides (country, city, device type, device age, new-device flag, account age, customer average amount, distance from home, IP account count, shared IP/device flags, device customer count).
+* `POST /api/transactions/import/csv` — Bulk CSV import with batch scoring (Admin / Business Manager). Supports the same optional risk-signal columns: `device_type`, `device_age_days`, `is_new_device`, `account_age_days`, `customer_avg_amount`, `distance_from_home_km`, `ip_account_count`, `shared_ip`, `shared_device`, `device_customer_count`.
 * `GET /api/transactions` — Paginated list with filtering and search.
 * `GET /api/transactions/{id}/details` — Complete 360-degree transaction view (customer history, linked devices, IPs, related transactions).
 

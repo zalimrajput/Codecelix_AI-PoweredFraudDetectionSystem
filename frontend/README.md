@@ -99,7 +99,7 @@ CodeCelix/
     │       └── GlobalAiAssistant.tsx    # Slide-out AI assistant drawer
     ├── features/                        # Domain feature components
     │   ├── dashboard/                   # MetricCard, RiskDistributionChart, FraudTrendChart
-    │   ├── transactions/                # TransactionFilters, ManualTransactionModal, CsvImportModal
+    │   ├── transactions/                # TransactionFilters, ManualTransactionModal (with risk-signal overrides), CsvImportModal
     │   ├── investigations/              # RiskBreakdownCard, AiExplanationPanel, CustomerRiskProfile,
     │   │                                # TransactionTimeline, TriggeredRulesList, DetectedPatternsList,
     │   │                                # RelatedAlertsList, AnalystNotesCard
@@ -130,7 +130,7 @@ The platform supports 3 core role permissions:
 | Route | ADMIN | BUSINESS MANAGER | ANALYST | Description |
 | :--- | :---: | :---: | :---: | :--- |
 | `/dashboard` | Yes | Yes | Yes | Executive KPIs, trend charts, risk segmentation |
-| `/transactions` | Yes | Yes | Yes | Transaction audit register, CSV import, manual entry |
+| `/transactions` | Yes | Yes | Yes | Transaction audit register, CSV import, manual entry with risk-signal overrides |
 | `/investigations` | Yes | - | Yes | Case dossier queue and review statuses |
 | `/investigations/:id` | Yes | - | Yes | High-density case intelligence and disposition |
 | `/network` | Yes | Yes | Yes | Interactive React Flow entity linkage graph |
@@ -185,6 +185,19 @@ All API integration points under `src/api/` are fully active and bound to the Fa
 | `/api/users/:id/status` | PATCH | `updateUserStatus(id, status)` | `src/api/users.ts` |
 | `/api/users/:id` | DELETE | `deleteUser(id)` | `src/api/users.ts` |
 | `/api/assistant/query` | POST | `askAssistant(payload)` | `src/api/assistant.ts` |
+
+### Manual Transaction Entry (Risk-Signal Overrides)
+
+The `ManualTransactionModal` (`src/features/transactions/`) injects an evaluation transaction directly into the fraud scoring engine. Beyond the required identifiers (Customer ID, Amount, Payment Method, IP Address, Device Fingerprint), it captures optional risk-signal fields grouped into four sections:
+
+| Section | Fields |
+| :--- | :--- |
+| Transaction Details | Country (required), City |
+| Customer Profile | Account Age (days), Customer Average Amount (USD) |
+| Device Intelligence | Device Type (Mobile/Desktop/Tablet), Device Age (days), New Device, Device Customer Count, Shared Device |
+| Network Signals | IP Account Count, Shared IP, Distance From Home (km) |
+
+Boolean signals (New Device, Shared IP, Shared Device) expose an **Auto-detect / Yes / No** selector: `Auto-detect` omits the field so the backend derives the value from customer/device/IP history, while an explicit choice is sent as a hard override consumed by the rules engine and the 43-feature ML vector.
 
 ---
 

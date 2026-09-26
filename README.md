@@ -55,6 +55,7 @@ Built with **FastAPI + SQLAlchemy 2.0 + PostgreSQL (Supabase)** on the backend, 
   * **Rule Score (35%)**: Driven by active fraud rules with critical block overrides.
   * **Customer Behavior Score (20%)**: Dynamic rolling baseline spend comparison, velocity spikes, and past fraud incidents.
 * Real-time pre-scoring endpoint: `POST /api/risk-check` (sub-5ms, zero database write).
+* **Explicit Risk-Signal Overrides**: Manual dashboard entry, CSV import, and `POST /api/risk-check` accept optional feature overrides — country, city, device type, device age (days), new-device flag, account age (days), customer average amount, distance from home (km), IP account count, shared IP/device flags, and device customer count. Provided values feed the 43-feature ML vector and rules context directly instead of relying on auto-derived history; omitted values fall back to automatic derivation.
 
 ### 2. Production Machine Learning Pipelines
 * **Primary Production Pipeline (`synthetic_fraud_pipeline.joblib`)**:
@@ -307,8 +308,8 @@ python test_ai_layer.py
 | | `POST /api/risk/retrain` | Retrain model components on updated historical data |
 | | `GET /api/risk-metrics` | Retrieve model precision, recall, and feedback metrics |
 | **Transactions** | `POST /api/transactions` | External API submission (`X-API-Key`) with auto-scoring |
-| | `POST /api/transactions/manual` | Internal dashboard manual entry with auto-scoring |
-| | `POST /api/transactions/import/csv` | Bulk CSV import with batch risk scoring |
+| | `POST /api/transactions/manual` | Internal dashboard manual entry with auto-scoring and optional risk-signal overrides |
+| | `POST /api/transactions/import/csv` | Bulk CSV import with batch risk scoring and optional risk-signal columns |
 | | `GET /api/transactions` | Paginated search, date/amount filters, customer filter |
 | | `GET /api/transactions/{id}/details` | Complete transaction, customer, history, device, IP view |
 | **Rules Engine** | `GET /api/rules` | List all active fraud rules and condition trees |

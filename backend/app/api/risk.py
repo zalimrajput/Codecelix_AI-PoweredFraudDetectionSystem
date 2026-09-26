@@ -68,6 +68,16 @@ def check_risk(
         city=payload.city,
         device_info=payload.device_info,
         created_at=payload.created_at,
+        device_type=payload.device_type,
+        device_age_days=payload.device_age_days,
+        is_new_device_override=payload.is_new_device,
+        account_age_days_override=payload.account_age_days,
+        customer_avg_amount=payload.customer_avg_amount,
+        distance_km_override=payload.distance_from_home_km,
+        ip_account_count_override=payload.ip_account_count,
+        shared_ip_override=payload.shared_ip,
+        shared_device_override=payload.shared_device,
+        device_customer_count_override=payload.device_customer_count,
         auto_alert=False,
     )
     return RiskCheckResponse(**result)

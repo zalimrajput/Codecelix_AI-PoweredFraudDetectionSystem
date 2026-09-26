@@ -16,6 +16,16 @@ class RiskCheckRequest(BaseModel):
     device_info: str | None = None
     transaction_id: str | None = None
     created_at: datetime | None = None
+    # Risk-signal overrides consumed by the decision engine / ML feature extraction.
+    device_type: str | None = None
+    device_age_days: int | None = None
+    is_new_device: bool | None = None
+    customer_avg_amount: float | None = None
+    distance_from_home_km: float | None = None
+    ip_account_count: int | None = None
+    shared_ip: bool | None = None
+    shared_device: bool | None = None
+    device_customer_count: int | None = None
 
 
 class RiskCheckResponse(BaseModel):

@@ -72,6 +72,18 @@ def evaluate_transaction_risk(
     city: str | None = None,
     device_info: str | None = None,
     created_at: datetime | None = None,
+    # Explicit risk-signal overrides (manual form / CSV / API). When provided,
+    # these win over auto-derived values from DB history.
+    device_type: str | None = None,
+    device_age_days: int | None = None,
+    is_new_device_override: bool | None = None,
+    account_age_days_override: int | None = None,
+    customer_avg_amount: float | None = None,
+    distance_km_override: float | None = None,
+    ip_account_count_override: int | None = None,
+    shared_ip_override: bool | None = None,
+    shared_device_override: bool | None = None,
+    device_customer_count_override: int | None = None,
     txn_record: Transaction | None = None,
     auto_alert: bool = True,
 ) -> dict[str, Any]:
@@ -105,6 +117,9 @@ def evaluate_transaction_risk(
             is_new_device = (prev_usage is None or prev_usage.usage_count <= 1)
         else:
             is_new_device = True
+
+    if is_new_device_override is not None:
+        is_new_device = is_new_device_override
 
     exclude_id = txn_record.id if txn_record else None
     is_new_ip = False
@@ -152,6 +167,16 @@ def evaluate_transaction_risk(
             if p.get("detected"):
                 is_new_country = True
 
+    # Apply explicit overrides where provided (manual form / CSV / API risk-signal fields)
+    if device_customer_count_override is not None:
+        device_sharing_count = max(1, int(device_customer_count_override))
+    if shared_device_override is not None:
+        device_sharing_count = max(device_sharing_count, 2 if shared_device_override else 1)
+    if ip_account_count_override is not None:
+        ip_sharing_count = max(1, int(ip_account_count_override))
+    if shared_ip_override is not None:
+        ip_sharing_count = max(ip_sharing_count, 2 if shared_ip_override else 1)
+
     # 4. Rules Engine Evaluation
     rule_context = {
         "amount": amount,
@@ -163,7 +188,13 @@ def evaluate_transaction_risk(
         "is_new_ip": is_new_ip,
         "is_new_country": is_new_country,
         "is_vpn": is_vpn,
-        "account_age_days": customer.account_age_days or 0,
+        "account_age_days": account_age_days_override if account_age_days_override is not None else (customer.account_age_days or 0),
+        "device_age_days": device_age_days,
+        "device_customer_count": device_sharing_count,
+        "shared_device": device_sharing_count > 1,
+        "ip_account_count": ip_sharing_count,
+        "shared_ip": ip_sharing_count > 1,
+        "distance_from_home_km": distance_km_override,
         "rapid_txns_count": rapid_count,
         "device_sharing_count": device_sharing_count,
         "ip_sharing_count": ip_sharing_count,
@@ -184,11 +215,14 @@ def evaluate_transaction_risk(
         country=country,
         city=city,
         payment_method=payment_method,
-        device_type=device_info,
+        device_type=device_type or device_info,
         device_sharing_count=device_sharing_count,
         ip_sharing_count=ip_sharing_count,
-        distance_km=5000.0 if impossible_travel else (1000.0 if is_new_country else 0.0),
+        distance_km=5000.0 if impossible_travel else (1000.0 if is_new_country else 0.0) if distance_km_override is None else distance_km_override,
         is_new_location=is_new_country or impossible_travel,
+        device_age_days=device_age_days,
+        account_age_days_override=account_age_days_override,
+        customer_avg_amount_override=customer_avg_amount,
     )
 
 
@@ -196,8 +230,8 @@ def evaluate_transaction_risk(
     behavior_score = _compute_customer_behavior_score(customer, amount, pattern_results)
 
     # 7. Final Risk Score Computation (Weighted Combination per PDF)
-    # Weights: Rules 40%, Behavior 35%, ML 25%
-    combined_score = (0.40 * rule_score) + (0.35 * behavior_score) + (0.25 * ml_anomaly_score)
+    # Weights: Rules 35%, Behavior 20%, ML 45%
+    combined_score = (0.35 * rule_score) + (0.20 * behavior_score) + (0.45 * ml_anomaly_score)
 
     if has_block_override or impossible_travel:
         combined_score = max(combined_score, 88.0)

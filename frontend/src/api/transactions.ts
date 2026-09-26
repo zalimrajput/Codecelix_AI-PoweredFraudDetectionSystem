@@ -111,16 +111,29 @@ export async function getTransactionById(id: string): Promise<Transaction> {
 }
 
 export async function createTransaction(data: ManualTransactionPayload): Promise<Transaction> {
-  const payload = {
+  const payload: Record<string, unknown> = {
     customer_id: data.customerId,
     amount: data.amount,
     currency: data.currency || 'USD',
     payment_method: data.paymentMethod?.toLowerCase() || 'card',
-    ip_address: data.ipAddress,
-    device_id: data.deviceId,
-    country: data.location?.split(',')[1]?.trim() || data.location,
-    city: data.location?.split(',')[0]?.trim(),
+    ip_address: data.ipAddress || undefined,
+    device_id: data.deviceId || undefined,
+    country: data.country || undefined,
+    city: data.city || undefined,
+    device_info: data.deviceType || undefined,
   };
+
+  // Optional risk-signal feature overrides (consumed by the decision engine / ML pipeline)
+  if (data.deviceType) payload.device_type = data.deviceType;
+  if (data.deviceAgeDays !== undefined) payload.device_age_days = data.deviceAgeDays;
+  if (data.isNewDevice !== undefined) payload.is_new_device = data.isNewDevice;
+  if (data.accountAgeDays !== undefined) payload.account_age_days = data.accountAgeDays;
+  if (data.customerAvgAmount !== undefined) payload.customer_avg_amount = data.customerAvgAmount;
+  if (data.distanceFromHomeKm !== undefined) payload.distance_from_home_km = data.distanceFromHomeKm;
+  if (data.ipAccountCount !== undefined) payload.ip_account_count = data.ipAccountCount;
+  if (data.sharedIp !== undefined) payload.shared_ip = data.sharedIp;
+  if (data.sharedDevice !== undefined) payload.shared_device = data.sharedDevice;
+  if (data.deviceCustomerCount !== undefined) payload.device_customer_count = data.deviceCustomerCount;
 
   const res = await apiClient<BackendTransaction>('/transactions/manual', {
     method: 'POST',

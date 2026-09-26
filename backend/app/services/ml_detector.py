@@ -96,19 +96,38 @@ def extract_raw_features_dict(
     ip_sharing_count: int = 1,
     distance_km: float = 0.0,
     is_new_location: bool = False,
+    device_age_days: int | None = None,
+    account_age_days_override: int | None = None,
+    customer_avg_amount_override: float | None = None,
 ) -> dict[str, float]:
-    """Extracts the full 43-dimensional numerical feature dictionary."""
+    """Extracts the full 43-dimensional numerical feature dictionary.
+
+    Optional overrides (device_age_days, customer_avg_amount_override) let manual
+    dashboard entries / API callers inject exact feature values instead of relying
+    on auto-derived customer history.
+    """
     amt = float(amount)
-    avg_amt = float(customer.avg_amount or amt or 100.0)
+    avg_amt = float(
+        customer_avg_amount_override
+        if customer_avg_amount_override is not None
+        else (customer.avg_amount or amt or 100.0)
+    )
     log_amt = math.log(max(1.0, amt))
     amt_deviation = abs(amt - avg_amt)
     amt_vs_avg = amt / (avg_amt + 1.0)
     amt_anomaly_flag = 1.0 if (amt_vs_avg >= 2.5 or (amt > 1500.0 and amt_vs_avg >= 1.8)) else 0.0
 
-    acc_age = float(customer.account_age_days or 0.0)
+    acc_age = float(
+        account_age_days_override
+        if account_age_days_override is not None
+        else (customer.account_age_days or 0.0)
+    )
     new_account_flag = 1.0 if acc_age < 30.0 else 0.0
 
-    dev_age = 0.0 if is_new_device else max(1.0, acc_age)
+    if device_age_days is not None:
+        dev_age = float(device_age_days)
+    else:
+        dev_age = 0.0 if is_new_device else max(1.0, acc_age)
     new_dev = 1.0 if is_new_device else 0.0
     dev_count = float(device_sharing_count)
     shared_dev = 1.0 if dev_count > 1 else 0.0
@@ -282,6 +301,9 @@ def compute_ml_anomaly_score(
     ip_sharing_count: int = 1,
     distance_km: float = 0.0,
     is_new_location: bool = False,
+    device_age_days: int | None = None,
+    account_age_days_override: int | None = None,
+    customer_avg_amount_override: float | None = None,
 ) -> tuple[float, str]:
     """Computes the ML anomaly & fraud risk score (0–100) using the production hybrid pipeline.
 
@@ -336,6 +358,9 @@ def compute_ml_anomaly_score(
             ip_sharing_count=ip_sharing_count,
             distance_km=distance_km,
             is_new_location=is_new_location,
+            device_age_days=device_age_days,
+            account_age_days_override=account_age_days_override,
+            customer_avg_amount_override=customer_avg_amount_override,
         )
 
         # Construct DataFrame strictly adhering to raw_feature_names ordering

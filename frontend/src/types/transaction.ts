@@ -43,7 +43,18 @@ export interface ManualTransactionPayload {
   paymentMethod: PaymentMethod;
   ipAddress: string;
   deviceId: string;
-  location: string;
+  country: string;
+  city?: string;
+  deviceType?: string;
+  deviceAgeDays?: number;
+  isNewDevice?: boolean;
+  accountAgeDays?: number;
+  customerAvgAmount?: number;
+  distanceFromHomeKm?: number;
+  ipAccountCount?: number;
+  sharedIp?: boolean;
+  sharedDevice?: boolean;
+  deviceCustomerCount?: number;
 }
 
 export interface CsvImportResult {

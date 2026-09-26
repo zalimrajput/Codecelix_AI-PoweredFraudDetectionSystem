@@ -114,7 +114,7 @@ def create_transaction_from_payload(db, payload: dict) -> "Transaction":
     db.flush()
 
     if payload.get("device_id"):
-        txn.link_device(db, str(payload["device_id"]))
+        txn.link_device(db, str(payload["device_id"]), device_type=payload.get("device_type"))
     if payload.get("ip_address"):
         txn.link_ip(db, str(payload["ip_address"]), country=payload.get("country"), city=payload.get("city"))
     return txn

@@ -15,6 +15,18 @@ class TransactionBase(BaseModel):
     device_info: str | None = None
     account_age_days: int | None = None
     signup_date: datetime | None = None
+    # Risk-signal overrides consumed by the decision engine / ML feature extraction.
+    # These let dashboard users (manual entry / CSV) inject the exact feature values
+    # used by the 43-feature ML vector instead of relying on auto-derivation.
+    device_type: str | None = None
+    device_age_days: int | None = None
+    is_new_device: bool | None = None
+    customer_avg_amount: float | None = None
+    distance_from_home_km: float | None = None
+    ip_account_count: int | None = None
+    shared_ip: bool | None = None
+    shared_device: bool | None = None
+    device_customer_count: int | None = None
     customer_email: str | None = None
     customer_name: str | None = None
     transaction_id: str | None = None  # external id

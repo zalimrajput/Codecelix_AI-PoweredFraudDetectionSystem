@@ -83,6 +83,16 @@ def create_transaction(
         city=txn.city,
         device_info=txn.device_info,
         created_at=txn.created_at,
+        device_type=data.device_type,
+        device_age_days=data.device_age_days,
+        is_new_device_override=data.is_new_device,
+        account_age_days_override=data.account_age_days,
+        customer_avg_amount=data.customer_avg_amount,
+        distance_km_override=data.distance_from_home_km,
+        ip_account_count_override=data.ip_account_count,
+        shared_ip_override=data.shared_ip,
+        shared_device_override=data.shared_device,
+        device_customer_count_override=data.device_customer_count,
         txn_record=txn,
         auto_alert=True,
     )
@@ -116,6 +126,16 @@ def create_manual_transaction(
         city=txn.city,
         device_info=txn.device_info,
         created_at=txn.created_at,
+        device_type=data.device_type,
+        device_age_days=data.device_age_days,
+        is_new_device_override=data.is_new_device,
+        account_age_days_override=data.account_age_days,
+        customer_avg_amount=data.customer_avg_amount,
+        distance_km_override=data.distance_from_home_km,
+        ip_account_count_override=data.ip_account_count,
+        shared_ip_override=data.shared_ip,
+        shared_device_override=data.shared_device,
+        device_customer_count_override=data.device_customer_count,
         txn_record=txn,
         auto_alert=True,
     )
@@ -239,6 +259,18 @@ async def import_csv(
     created, errors = 0, []
     for i, row in enumerate(reader, start=2):
         try:
+            def _csv_int(col: str) -> int | None:
+                raw = (row.get(col) or "").strip()
+                return int(float(raw)) if raw else None
+
+            def _csv_float(col: str) -> float | None:
+                raw = (row.get(col) or "").strip()
+                return float(raw) if raw else None
+
+            def _csv_bool(col: str) -> bool | None:
+                raw = (row.get(col) or "").strip().lower()
+                return raw in ("1", "true", "yes", "y") if raw else None
+
             payload = {
                 "customer_id": row["customer_id"],
                 "amount": float(row["amount"]),
@@ -250,6 +282,16 @@ async def import_csv(
                 "device_info": row.get("device_info") or None,
                 "transaction_id": row.get("transaction_id") or None,
                 "created_at": row.get("created_at") or None,
+                # Optional risk-signal overrides (column headers match manual form fields)
+                "device_type": row.get("device_type") or None,
+                "device_age_days": _csv_int("device_age_days"),
+                "is_new_device": _csv_bool("is_new_device"),
+                "customer_avg_amount": _csv_float("customer_avg_amount"),
+                "distance_from_home_km": _csv_float("distance_from_home_km"),
+                "ip_account_count": _csv_int("ip_account_count"),
+                "shared_ip": _csv_bool("shared_ip"),
+                "shared_device": _csv_bool("shared_device"),
+                "device_customer_count": _csv_int("device_customer_count"),
             }
             txn = create_transaction_from_payload(db, payload)
             update_customer_profile(db, txn.customer_id)
@@ -265,6 +307,16 @@ async def import_csv(
                 city=txn.city,
                 device_info=txn.device_info,
                 created_at=txn.created_at,
+                device_type=payload.get("device_type"),
+                device_age_days=payload.get("device_age_days"),
+                is_new_device_override=payload.get("is_new_device"),
+                account_age_days_override=_csv_int("account_age_days"),
+                customer_avg_amount=payload.get("customer_avg_amount"),
+                distance_km_override=payload.get("distance_from_home_km"),
+                ip_account_count_override=payload.get("ip_account_count"),
+                shared_ip_override=payload.get("shared_ip"),
+                shared_device_override=payload.get("shared_device"),
+                device_customer_count_override=payload.get("device_customer_count"),
                 txn_record=txn,
                 auto_alert=True,
             )
