@@ -1,4 +1,5 @@
-from datetime import datetime
+import json
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -22,7 +23,7 @@ from app.schemas.fraud import (AlertCreate, AlertOut, AlertUpdate, AuditLogOut, 
                                ModelFeedbackOut, ReportOut)
 from app.schemas.risk import CustomerRiskProfileOut, RiskAssessmentOut
 from app.schemas.transaction import TransactionOut
-from app.utils.datetime import utcnow
+from app.utils.datetime import parse_dt, utcnow
 
 router = APIRouter()
 
@@ -254,39 +255,178 @@ def create_feedback(data: ModelFeedbackCreate, db: Session = Depends(get_db),
 
 # ---------- Reports ----------
 REPORT_TYPES = ["daily_activity", "monthly_activity", "high_risk_customers",
-                "high_risk_transactions", "confirmed_fraud", "false_positives", "fraud_trends"]
+                "high_risk_transactions", "confirmed_fraud", "false_positives",
+                "fraud_trends", "geographic", "rule_performance"]
+
+# Accept the short report types sent by the frontend ReportGenerator.
+REPORT_TYPE_ALIASES = {
+    "daily": "daily_activity",
+    "monthly": "monthly_activity",
+    "high_risk": "high_risk_customers",
+    "geographic": "geographic",
+    "rule_performance": "rule_performance",
+}
 
 
-def _build_report_payload(db: Session, report_type: str, period_start, period_end) -> dict:
+def _period_transactions(db: Session, period_start, period_end) -> list[Transaction]:
     txn_q = db.query(Transaction)
     if period_start:
         txn_q = txn_q.filter(Transaction.created_at >= period_start)
     if period_end:
         txn_q = txn_q.filter(Transaction.created_at <= period_end)
-    txns = txn_q.all()
-    by_status = {}
+    return txn_q.order_by(Transaction.created_at.desc()).limit(10000).all()
+
+
+def _daily_breakdown(txns: list[Transaction], flagged_ids: set[str]) -> list[dict]:
+    buckets: dict[str, dict] = {}
+    for t in txns:
+        day = t.created_at.date().isoformat() if t.created_at else "unknown"
+        b = buckets.setdefault(day, {"date": day, "transactions": 0, "flagged": 0, "amount": 0.0})
+        b["transactions"] += 1
+        b["amount"] = round(b["amount"] + (t.amount or 0), 2)
+        if t.id in flagged_ids:
+            b["flagged"] += 1
+    return sorted(buckets.values(), key=lambda b: b["date"])
+
+
+def _build_report_payload(db: Session, report_type: str, period_start, period_end,
+                          risk_threshold: float = 75.0) -> dict:
+    txns = _period_transactions(db, period_start, period_end)
+    txn_ids = [t.id for t in txns]
+
+    assessment_by_txn: dict[str, RiskAssessment] = {}
+    if txn_ids:
+        for a in db.query(RiskAssessment).filter(RiskAssessment.transaction_id.in_(txn_ids)).all():
+            assessment_by_txn[a.transaction_id] = a
+
+    by_status: dict[str, int] = {}
     for t in txns:
         by_status[t.status] = by_status.get(t.status, 0) + 1
+
+    flagged = [t for t in txns
+               if (a := assessment_by_txn.get(t.id)) is not None
+               and (a.risk_score or 0) >= risk_threshold]
+    flagged_ids = {t.id for t in flagged}
+    blocked = [t for t in txns if t.status == "blocked"]
+
+    alert_q = db.query(Alert)
+    if period_start:
+        alert_q = alert_q.filter(Alert.created_at >= period_start)
+    if period_end:
+        alert_q = alert_q.filter(Alert.created_at <= period_end)
+    alerts = alert_q.limit(5000).all()
+    fp_count = sum(1 for a in alerts if a.status == "false_positive")
+    confirmed_count = sum(1 for a in alerts if a.status == "confirmed_fraud")
+    resolved = fp_count + confirmed_count
+
     payload = {
         "report_type": report_type,
         "generated_at": utcnow().isoformat(),
         "period": {"start": period_start.isoformat() if period_start else None,
                    "end": period_end.isoformat() if period_end else None},
+        "risk_threshold": risk_threshold,
         "total_transactions": len(txns),
         "status_distribution": by_status,
-        "total_amount": round(sum(t.amount for t in txns), 2),
+        "total_amount": round(sum(t.amount or 0 for t in txns), 2),
+        "flagged_count": len(flagged),
+        "blocked_count": len(blocked),
+        "flagged_amount": round(sum(t.amount or 0 for t in flagged), 2),
+        "false_positive_rate": round(fp_count / resolved * 100, 2) if resolved else 0.0,
     }
-    if report_type == "confirmed_fraud":
-        payload["alerts"] = [
-            {"id": a.id, "title": a.title, "created_at": str(a.created_at)}
-            for a in db.query(Alert).filter(Alert.status == "confirmed_fraud").limit(100).all()
+
+    if report_type in ("daily_activity", "monthly_activity", "fraud_trends"):
+        payload["daily_breakdown"] = _daily_breakdown(txns, flagged_ids)
+
+    if report_type in ("daily_activity", "monthly_activity", "high_risk_transactions"):
+        top = sorted(flagged, key=lambda t: assessment_by_txn[t.id].risk_score, reverse=True)[:100]
+        payload["flagged_transactions"] = [
+            {"transaction_id": t.txn_external_id or t.id,
+             "customer_id": t.customer_id,
+             "amount": t.amount,
+             "currency": t.currency,
+             "status": t.status,
+             "risk_score": round(assessment_by_txn[t.id].risk_score, 1),
+             "risk_level": assessment_by_txn[t.id].risk_level,
+             "decision": assessment_by_txn[t.id].decision,
+             "created_at": t.created_at.isoformat() if t.created_at else None}
+            for t in top
         ]
-    elif report_type == "false_positives":
-        payload["alerts"] = [
-            {"id": a.id, "title": a.title, "created_at": str(a.created_at)}
-            for a in db.query(Alert).filter(Alert.status == "false_positive").limit(100).all()
+
+    if report_type == "high_risk_customers":
+        profiles = (db.query(CustomerRiskProfile, Customer)
+                    .join(Customer, CustomerRiskProfile.customer_id == Customer.id)
+                    .filter(CustomerRiskProfile.risk_score >= risk_threshold)
+                    .order_by(CustomerRiskProfile.risk_score.desc())
+                    .limit(100).all())
+        payload["customers"] = [
+            {"customer_id": c.external_id,
+             "name": c.full_name,
+             "email": c.email,
+             "risk_score": round(p.risk_score, 1),
+             "risk_level": p.risk_level,
+             "devices_used": p.devices_used_count,
+             "locations_used": p.locations_used_count,
+             "total_transactions": c.total_transactions,
+             "suspicious_transactions": c.suspicious_transactions}
+            for p, c in profiles
         ]
+        payload["high_risk_customer_count"] = len(payload["customers"])
+
+    if report_type == "geographic":
+        geo: dict[str, dict] = {}
+        for t in txns:
+            key = t.country or "unknown"
+            g = geo.setdefault(key, {"country": key, "transactions": 0, "flagged": 0, "amount": 0.0})
+            g["transactions"] += 1
+            g["amount"] = round(g["amount"] + (t.amount or 0), 2)
+            if t.id in flagged_ids:
+                g["flagged"] += 1
+        payload["geographic_distribution"] = sorted(
+            geo.values(), key=lambda g: g["transactions"], reverse=True)
+
+    if report_type == "rule_performance":
+        rule_stats: dict[str, dict] = {}
+        for a in assessment_by_txn.values():
+            for r in (a.triggered_rules or []):
+                name = r.get("name", "unknown")
+                s = rule_stats.setdefault(name, {"rule": name,
+                                                 "severity": r.get("severity"),
+                                                 "score_impact": r.get("score_impact"),
+                                                 "triggered_count": 0})
+                s["triggered_count"] += 1
+        payload["rule_performance"] = sorted(
+            rule_stats.values(), key=lambda r: r["triggered_count"], reverse=True)
+        payload["assessments_analyzed"] = len(assessment_by_txn)
+
+    if report_type in ("confirmed_fraud", "false_positives"):
+        wanted = "confirmed_fraud" if report_type == "confirmed_fraud" else "false_positive"
+        payload["alerts"] = [
+            {"id": a.id, "title": a.title, "severity": a.severity,
+             "created_at": str(a.created_at)}
+            for a in alerts if a.status == wanted
+        ][:100]
+
     return payload
+
+
+def _flatten_payload(payload: dict, prefix: str = "") -> list[tuple[str, object]]:
+    """Flatten nested report payload into (key, value) rows for CSV export."""
+    rows: list[tuple[str, object]] = []
+    for k, v in payload.items():
+        key = f"{prefix}.{k}" if prefix else str(k)
+        if isinstance(v, dict):
+            rows.extend(_flatten_payload(v, key))
+        elif isinstance(v, list):
+            if not v:
+                rows.append((key, ""))
+            elif all(isinstance(i, dict) for i in v):
+                for i, item in enumerate(v):
+                    rows.extend(_flatten_payload(item, f"{key}[{i}]"))
+            else:
+                rows.append((key, json.dumps(v)))
+        else:
+            rows.append((key, v))
+    return rows
 
 
 @router.get("/reports", response_model=list[ReportOut])
@@ -297,16 +437,28 @@ def list_reports(db: Session = Depends(get_db), user=Depends(get_current_user)):
 @router.post("/reports", response_model=ReportOut, status_code=201)
 def generate_report(data: dict, db: Session = Depends(get_db),
                     user=Depends(require_roles("admin", "business_manager"))):
-    report_type = data.get("report_type")
+    raw_type = str(data.get("report_type") or "").strip().lower()
+    report_type = REPORT_TYPE_ALIASES.get(raw_type, raw_type)
     if report_type not in REPORT_TYPES:
-        raise HTTPException(400, f"report_type must be one of {REPORT_TYPES}")
-    period_start = data.get("period_start")
-    period_end = data.get("period_end")
-    payload = _build_report_payload(db, report_type, period_start, period_end)
+        raise HTTPException(400, f"report_type must be one of {sorted(set(REPORT_TYPES) | set(REPORT_TYPE_ALIASES))}")
+
+    period_start = parse_dt(data["period_start"]) if data.get("period_start") else None
+    period_end = parse_dt(data["period_end"]) if data.get("period_end") else None
+    # Date-only end values are inclusive: extend to the end of that day.
+    if period_end and len(str(data["period_end"]).strip()) <= 10:
+        period_end = period_end + timedelta(days=1)
+    try:
+        risk_threshold = float(data.get("risk_threshold", 75))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "risk_threshold must be a number between 0 and 100")
+    if not 0 <= risk_threshold <= 100:
+        raise HTTPException(400, "risk_threshold must be between 0 and 100")
+
+    payload = _build_report_payload(db, report_type, period_start, period_end, risk_threshold)
     report = Report(
         id=str(uuid4()),
         report_type=report_type,
-        title=data.get("title", report_type.replace("_", " ").title()),
+        title=data.get("title") or report_type.replace("_", " ").title(),
         period_start=period_start,
         period_end=period_end,
         payload=json.dumps(payload, default=str),
@@ -329,8 +481,8 @@ def export_report(report_id: str, format: str = "json",
         out = io.StringIO()
         writer = csv_module.writer(out)
         writer.writerow(["key", "value"])
-        for k, v in payload.items():
-            writer.writerow([k, json.dumps(v) if isinstance(v, (dict, list)) else v])
+        for k, v in _flatten_payload(payload):
+            writer.writerow([k, v])
         return {"filename": f"{report.report_type}.csv", "content": out.getvalue()}
     return {"filename": f"{report.report_type}.json", "content": report.payload}
 
@@ -343,6 +495,3 @@ def list_audit_logs(db: Session = Depends(get_db),
     result = get_list(db, AuditLog, page=page, page_size=page_size)
     result["items"] = [AuditLogOut.model_validate(a).model_dump() for a in result["items"]]
     return result
-
-
-import json  # noqa: E402

@@ -1,9 +1,9 @@
 /**
  * CodeCelix Reports Service
- * 
+ *
  * Integrated with FastAPI backend:
  * - GET  /api/reports
- * - POST /api/reports
+ * - POST /api/reports { report_type, title, period_start, period_end, risk_threshold }
  * - GET  /api/reports/{id}/export?format=csv|json
  */
 
@@ -20,22 +20,32 @@ interface BackendReport {
   created_at: string;
 }
 
+const TYPE_TO_BACKEND: Record<ReportType, string> = {
+  DAILY: 'daily',
+  MONTHLY: 'monthly',
+  HIGH_RISK: 'high_risk',
+  GEOGRAPHIC: 'geographic',
+  RULE_PERFORMANCE: 'rule_performance',
+};
+
 function mapReportType(t?: string): ReportType {
   const s = (t || 'DAILY').toUpperCase();
-  if (s.includes('MONTH')) return 'MONTHLY';
-  if (s.includes('GEO')) return 'GEOGRAPHIC';
+  if (s.includes('GEOGRAPHIC')) return 'GEOGRAPHIC';
   if (s.includes('RULE')) return 'RULE_PERFORMANCE';
-  if (s.includes('HIGH') || s.includes('RISK')) return 'HIGH_RISK';
+  if (s.includes('HIGH_RISK_CUSTOMERS') || s.includes('HIGH_RISK')) return 'HIGH_RISK';
+  if (s.includes('MONTH')) return 'MONTHLY';
   return 'DAILY';
 }
 
 function formatReport(r: BackendReport): ReportSummary {
-  let stats: any = {};
+  let stats: Record<string, unknown> = {};
   try {
     stats = JSON.parse(r.payload || '{}');
   } catch {
-    // fallback
+    stats = {};
   }
+
+  const resolved = Number(stats.false_positive_rate || 0);
 
   return {
     id: r.id,
@@ -43,14 +53,14 @@ function formatReport(r: BackendReport): ReportSummary {
     type: mapReportType(r.report_type),
     generatedDate: r.created_at || new Date().toISOString(),
     dateRange: {
-      start: r.period_start || new Date().toISOString().split('T')[0],
-      end: r.period_end || new Date().toISOString().split('T')[0],
+      start: (r.period_start || '').split('T')[0],
+      end: (r.period_end || '').split('T')[0],
     },
-    totalTransactionsScanned: Number(stats.total_transactions || 120),
-    flaggedSuspiciousCount: Number(stats.suspicious_count || 14),
-    blockedCount: Number(stats.blocked_count || 3),
-    falsePositiveRate: Number(stats.false_positive_rate || 2.1),
-    estimatedLossPrevented: Number(stats.estimated_loss_prevented || 4500),
+    totalTransactionsScanned: Number(stats.total_transactions || 0),
+    flaggedSuspiciousCount: Number(stats.flagged_count ?? stats.suspicious_count ?? 0),
+    blockedCount: Number(stats.blocked_count ?? 0),
+    falsePositiveRate: resolved,
+    estimatedLossPrevented: Number(stats.flagged_amount ?? 0),
   };
 }
 
@@ -64,15 +74,16 @@ export async function getReports(): Promise<ReportSummary[]> {
 }
 
 export async function generateReport(filter: ReportFilter): Promise<ReportSummary> {
-  const typeLower = filter.type.toLowerCase().includes('month') ? 'monthly' : 'daily';
+  const report_type = TYPE_TO_BACKEND[filter.type] || 'daily';
 
   const res = await apiClient<BackendReport>('/reports', {
     method: 'POST',
     body: JSON.stringify({
-      report_type: typeLower,
-      title: `${filter.type} Intelligence Report`,
+      report_type,
+      title: `${filter.type.replace('_', ' ')} Intelligence Report`,
       period_start: filter.startDate,
       period_end: filter.endDate,
+      risk_threshold: filter.riskThreshold ?? 75,
     }),
   });
 

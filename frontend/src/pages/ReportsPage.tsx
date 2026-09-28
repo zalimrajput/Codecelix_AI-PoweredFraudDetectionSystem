@@ -37,20 +37,30 @@ export const ReportsPage: React.FC = () => {
     try {
       const newReport = await generateReport(filter);
       setReports((prev) => [newReport, ...prev]);
-      showToast('success', 'Report Generated', `Compiled ${filter.type.toLowerCase()} report.`);
-    } catch {
-      showToast('info', 'Integration Notice', 'Endpoint POST /api/reports/generate is pending backend integration.');
+      showToast('success', 'Report Generated', `Compiled ${filter.type.toLowerCase().replace('_', ' ')} report covering ${filter.startDate} to ${filter.endDate}.`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error while generating report.';
+      showToast('error', 'Report Generation Failed', message);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleExport = async (format: ReportFormat) => {
+  const handleExport = async (reportId: string, format: ReportFormat) => {
     try {
-      await exportReport('latest', format);
-      showToast('success', 'Export Initiated', `Downloading ${format} report bundle.`);
-    } catch {
-      showToast('info', 'Integration Notice', `Endpoint GET /api/reports/:id/export?format=${format.toLowerCase()} is pending integration.`);
+      const blob = await exportReport(reportId, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `report-${reportId}.${format.toLowerCase()}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast('success', 'Export Ready', `Downloaded ${format} report bundle.`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error during export.';
+      showToast('error', 'Export Failed', message);
     }
   };
 
@@ -105,7 +115,7 @@ export const ReportsPage: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleExport('CSV')}
+            onClick={() => handleExport(r.id, 'CSV')}
             leftIcon={<Download className="w-3 h-3" />}
           >
             CSV
@@ -113,7 +123,7 @@ export const ReportsPage: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleExport('JSON')}
+            onClick={() => handleExport(r.id, 'JSON')}
             leftIcon={<Download className="w-3 h-3" />}
           >
             JSON
@@ -148,7 +158,14 @@ export const ReportsPage: React.FC = () => {
       {/* Generator Controls */}
       <ReportGenerator
         onGenerate={handleGenerate}
-        onExport={handleExport}
+        onExport={(format) => {
+          const latest = reports[0];
+          if (latest) {
+            handleExport(latest.id, format);
+          } else {
+            showToast('info', 'Nothing to Export', 'Generate a report first, then export it from the archive below.');
+          }
+        }}
         isGenerating={isGenerating}
       />
 
